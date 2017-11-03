@@ -1,5 +1,4 @@
 #include<iostream>
-
 using namespace std;
 
 class Vrijeme{
@@ -13,11 +12,32 @@ public:
 		_sekunde = sekunde;
 	}
 	friend ostream& operator<<(ostream&, Vrijeme&);
-	void setMinute(int minute) {
+	Vrijeme& operator+(int minute) {
 		_minute += minute;
 		while (_minute >= 60) {
 			_minute /= 60;
 			_sati++;
+		}
+		return *this;
+	}
+	bool prviRanije(const Vrijeme& nekoVrijeme) {
+		if (_sati < nekoVrijeme._sati)
+			return true;
+		else if (_sati > nekoVrijeme._sati)
+			return false;
+		else {
+			if (_minute < nekoVrijeme._minute)
+				return true;
+			else if (_minute > nekoVrijeme._minute)
+				return false;
+			else {
+				if (_sekunde < nekoVrijeme._sekunde)
+					return true;
+				else if (_sekunde > nekoVrijeme._sekunde)
+					return false;
+				else
+					false;
+			}
 		}
 	}
 };
@@ -33,7 +53,7 @@ class Let{
 	int _brIzlazneKapije;
 	Vrijeme _vrijemePolijetanja;
 	int _trajanje;
-	int _kasnjenje; 
+	int _kasnjenje;
 
 public:
 	Let(char oznaka[], char * odrediste, int brIzlazneKapije, Vrijeme &vrijemePolijetanja, int trajanje = 0, int kasnjenje = 0):_vrijemePolijetanja(vrijemePolijetanja),
@@ -68,51 +88,52 @@ public:
 		cout << "KASNJENJE: " <<_kasnjenje << endl;
 	}
 	Let& operator+=(int minute) {
-		this->_vrijemePolijetanja.setMinute(minute);
+		this->_vrijemePolijetanja + minute;
 		return *this;
 	}
-
-
-	/*Preklopiti operator + na način da omogućava sabiranje objekata tipa "Let" i cijelog broja, pri
-	čemu se kao rezultat dobiva novi objekat tipa "Let", u kojem je vrijeme polijetanja pomjereno
-	unaprijed za iznos određen drugim sabirkom (računato u minutama).
-	Također preklopiti i operator "+=" koji osigurava da izraz oblika "X += Y uvijek ima isto značenje kao i izraz
-	"X = X + Y" */
-
-	/* Funkciju kojom je moguće saznati očekivano vrijeme polijetanja kada se uračuna iznos kašnjenja
-	u odnosu na predviđeno vrijeme polijetanja (preklopiti operator + u klasi Vrijeme). */
-
-	//Funkciju koja vraća očekivano vrijeme slijetanja
-
-	/*Preklopiti operator "++" na način da pomijera vrijeme polaska za jedan sat unaprijed.
-	Potrebno je podržati i prefiksnu i postfiksnu verziju ovog operatora.*/
-
-	/*Preklopiti relacione operatore "<" i ">" koji ispituju koji let nastupa ranije, odnosno kasnije.
-	Operator "<" vraća logičku vrijednost "true" ukoliko polijetanje leta sa lijeve strane nastupa
-	prije polijetanje leta sa desne strane, a u suprotnom vraća logičku vrijednost "false".
-	Analogno vrijedi za operator ">". Prilikom upoređivanja treba uzeti u obzir i očekivano vrijeme kašnjenja,
-	a ne samo planirano vrijeme polijetanja.*/
-
-	/*Preklopiti operator "<<" koji treba da podrži ispis objekata tipa "Let" na ekran. U slučaju da
-	se radi o polijetanju bez kašnjenja, ispis bi trebao da izgleda kako slijedi:
-
-	JFK 156 Atalanta    12:50   19:30   5
-
-	Podaci predstavljaju redom: oznaku leta, naziv odredišta, vrijeme polijetanja, očekivano
-	vrijeme slijetanja i broj izlazne kapije.
-
-	U slučaju da se radi o letu koji kasni, ispis bi trebao izgledati kako slijedi:
-
-	ZGK 932 Zagreb    15:50 (Planirano 15:30, Kasni 20 min)*/
+	Vrijeme ocekivanoVrijemePolijetanja() {
+		Vrijeme newTime = _vrijemePolijetanja + _kasnjenje;
+		return newTime;
+	}
+	Vrijeme ocekivanoVrijemeSlijetanja() {
+		Vrijeme newTime = _vrijemePolijetanja + _kasnjenje + _trajanje;
+		return newTime;
+	}
+	Vrijeme& operator++() {
+		return this->_vrijemePolijetanja + 60;
+	}
+	Vrijeme operator++(int) {
+		Vrijeme odlozeno(_vrijemePolijetanja);
+		this->_vrijemePolijetanja + 60;
+		return odlozeno;
+	}
+	bool operator<(Let& drugiLet) {
+		Let copy = *this;
+		return copy._vrijemePolijetanja.prviRanije((drugiLet._vrijemePolijetanja+drugiLet._kasnjenje));
+	}
+	bool operator>(Let& drugiLet) {
+		Let copy = *this;
+		return !(copy._vrijemePolijetanja.prviRanije((drugiLet._vrijemePolijetanja + drugiLet._kasnjenje)));
+	}
+	friend ostream& operator<<(ostream&, Let&);
+	Vrijeme getPolijetanje() {
+		return _vrijemePolijetanja;
+	}
 };
-
 bool operator!(Let& nekiLet) {
 	return nekiLet._kasnjenje;
 }
 Let operator+(Let& randomLet, int minute) {
 	Let noviLet(randomLet);
-	noviLet._vrijemePolijetanja.setMinute(minute);
+	noviLet._vrijemePolijetanja + minute;
 	return noviLet;
+}
+ostream& operator<<(ostream& COUT, Let& nekiLet) {
+	if (!(!nekiLet))
+		COUT << nekiLet._oznaka << " " << nekiLet._odrediste << "\t" << nekiLet._vrijemePolijetanja << " " << nekiLet.ocekivanoVrijemeSlijetanja() << "\t" << nekiLet._brIzlazneKapije;
+	else
+		COUT << nekiLet._oznaka << " " << nekiLet._odrediste << "\t" << nekiLet._vrijemePolijetanja << " (Planirano " << nekiLet.ocekivanoVrijemePolijetanja() << ", kasni " << nekiLet._kasnjenje << " min)";
+	return COUT;
 }
 
 
@@ -124,13 +145,36 @@ class RasporedLetova
 
 public:
 	RasporedLetova(int maksimalanBrojLetova) : _maksimalanBrojLetova(maksimalanBrojLetova),
-		_letovi(new Let*[_maksimalanBrojLetova]), _brojRegistrovanihLetova(0)
-	{
+		_letovi(new Let*[_maksimalanBrojLetova]), _brojRegistrovanihLetova(0){
 
+	}
+	RasporedLetova& operator+=(Let& nekiLet) {
+		if (_brojRegistrovanihLetova >= _maksimalanBrojLetova)
+			return *this;
+		_letovi[_brojRegistrovanihLetova++] = &nekiLet;
+		int lokacija = _brojRegistrovanihLetova - 1;
+		bool makarJednom = false;
+		while (makarJednom) {
+			for (int i = 0; i < _brojRegistrovanihLetova; i++) {
+				if (_letovi[lokacija]->getPolijetanje().prviRanije(_letovi[i]->getPolijetanje())) {
+					swap(_letovi[lokacija], _letovi[i]);
+					lokacija = i;
+					makarJednom = true;
+				}
+			}
+		}
+		return *this;
+	}
+	void print() {
+		for (int i = 0; i < _brojRegistrovanihLetova; i++)
+			_letovi[i]->info();
 	}
 
 	/*Preklopiti operator "+=" na način da registruje novi let u raspored. Raspored letova u svakom momentu treba biti sortiran
-	prema vremenu polijetanja. Voditi računa o maksimalnom broju letova.  Za potrebe poređenja vremena polaska letova preklopiti odgovarajuće operatore u klasi Vrijeme.*/
+	prema vremenu polijetanja. 
+	Voditi računa o maksimalnom broju letova.  
+	Za potrebe poređenja vremena polaska letova preklopiti odgovarajuće operatore u klasi Vrijeme.
+	*/
 
 	/*Preklopiti operator "-=" na način da ukljanja registrovani let sa oznakom definisanom putem desnog operanda.
 	Pri tome sačuvati redoslijed prethodno registrovanih letova. */
@@ -151,15 +195,16 @@ public:
 
 int main()
 {
-	Vrijeme trenutno(1, 9, 13);
-	cout << trenutno;
+	Vrijeme trenutno(4, 9, 13);
+	Vrijeme ranije(2, 9, 13);
+	Vrijeme kasnije(16, 9, 13);
 	Let noviLet("LB-182", "Stuttgart", 2, trenutno, 120, 0);
-	noviLet.info();
-	if (!noviLet)
-		cout << "Let kasni!" << endl;
-	Let prolongiraniLet = noviLet + 150;
-	prolongiraniLet.info();
-	prolongiraniLet += 10;
-	prolongiraniLet.info();
+	Let noviLet2("LB-183", "Stuttgart", 3, ranije, 120, 0);
+	Let noviLet3("LB-184", "Stuttgart", 4, kasnije, 120, 0);
+	RasporedLetova danas(5);
+	danas += noviLet;
+	danas += noviLet2;
+	danas += noviLet3;
+	danas.print();
 	return 0;
 }
